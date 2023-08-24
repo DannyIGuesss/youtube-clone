@@ -1,12 +1,17 @@
 import express from 'express';
-import {convertVideo, deleteProcessedVideo, deleteRawVideo, downloadRawVideo, setupDirectories, uploadProcessedVideo} from "./storage"
+import {uploadProcessedVideo,
+    downloadRawVideo,
+    deleteRawVideo,
+    deleteProcessedVideo,
+    convertVideo,
+    setupDirectories} from "./storage"
 
 setupDirectories()
 
 const app = express()
 app.use(express.json())
 
-app.post("/process-video", async(req,res) => {
+app.post("/process-video", async (req,res) => {
     //get the bucket and fileName from the Cloud Pub/Sub message
     let data;
     try{
@@ -33,7 +38,6 @@ app.post("/process-video", async(req,res) => {
         deleteRawVideo(inputFileName),
         deleteProcessedVideo(outputFileName)
         ]);
-        
         console.log(err);
         return res.status(500).send('Internal Server Error: video processing failed.')
     }

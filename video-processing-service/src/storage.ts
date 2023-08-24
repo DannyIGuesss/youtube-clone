@@ -4,7 +4,6 @@
 import {Storage} from '@google-cloud/storage'
 import fs from 'fs'
 import ffmpeg from 'fluent-ffmpeg'
-import { log } from 'console';
 
 const storage = new Storage();
 const rawVideoBucketName = "dg-raw-videos";
@@ -28,18 +27,16 @@ export function setupDirectories() {
 export function convertVideo(rawVideoName: string, processedVideoName:string) {
     return new Promise<void>((resolve, reject) => {
         ffmpeg(`${localRawVideoPath}/${rawVideoName}`)
-        .outputOptions("-vf", "scale=-1:360") //converts to 360p
-    
-        .on("end", () => {
-            console.log("Video processing started.")
-            resolve()
-        })
+        .outputOptions("-vf", "scale=-1:360, pad=ceil(iw/2)*2:ceil(ih/2)*2") //converts to 360p
 
+        .on("end", () => {
+            console.log("Processing finished successfully");
+            resolve();
+        })
         .on("error", function(err: any) {
             console.log(`An errror occurred: ${err.message}`)
             reject(err);
         })
-
         .save(`${localProcessedVideoPath}/${processedVideoName}`)
     })
 }
@@ -55,7 +52,7 @@ export async function downloadRawVideo(fileName: string) {
         .file(fileName)
         .download({destination: `${localRawVideoPath}/${fileName}`})
     console.log(
-        `gs://${rawVideoBucketName}/${fileName} downloaded to ${localProcessedVideoPath}/${fileName}`
+        `gs://${rawVideoBucketName}/${fileName} downloaded to ${localRawVideoPath}/${fileName}`
     );
     
 
@@ -70,14 +67,14 @@ export async function downloadRawVideo(fileName: string) {
 export async function uploadProcessedVideo(fileName: string) {
     const bucket = storage.bucket(processedVideoBucketName);
 
-    await bucket.upload(`${localProcessedVideoPath}/${fileName}`, {
-        destination: fileName
-    });
+    await storage.bucket(processedVideoBucketName)
+        .upload(`${localProcessedVideoPath}/${fileName}`, {
+            destination: fileName,
+        });
 
     console.log(
         `${localProcessedVideoPath}/${fileName} uploaded to gs://${processedVideoBucketName}/${fileName}.`
     );
-
     await bucket.file(fileName).makePublic();
 }
 
@@ -119,7 +116,7 @@ function deleteFile(filePath:string): Promise<void> {
             })
         }else {
             console.log(`File not found at ${filePath}, skipping the delete.`);
-            
+            resolve()
         }
     });
 }
